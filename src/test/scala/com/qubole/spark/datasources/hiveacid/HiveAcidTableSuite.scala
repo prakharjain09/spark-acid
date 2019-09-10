@@ -70,14 +70,14 @@ class HiveAcidTableSuite extends FunSuite with BeforeAndAfterEach with BeforeAnd
 
 
   // Test Run
-  insertIntoTest(Table.allFullAcidTypes, false)
+  insertIntoOverwriteTest(Table.allFullAcidTypes, false)
 
-  // Read test
+  // Insert Into/Overwrite test
   //
   // 1. Write bunch of rows using hive client
   // 2. Read entire table using hive client
   // Verify: Both spark reads are same as hive read
-  def insertIntoTest(tTypes: List[(String,Boolean)], insertOnly: Boolean): Unit = {
+  def insertIntoOverwriteTest(tTypes: List[(String,Boolean)], insertOnly: Boolean): Unit = {
     tTypes.foreach { case (tType, isPartitioned) =>
       val tableNameHive = "tHive"
       val tableNameSpark = "tSpark"
@@ -88,7 +88,35 @@ class HiveAcidTableSuite extends FunSuite with BeforeAndAfterEach with BeforeAnd
         def code() = {
           helper.recreate(tableHive)
           helper.recreate(tableSpark)
-          helper.verifyWrites(tableHive, tableSpark)
+
+          // Insert into rows in both tables from Hive and Spark
+          helper.hiveExecute(tableHive.insertIntoHiveTableKeyRange(11, 20))
+          helper.sparkSQL(tableSpark.insertIntoSparkTableKeyRange(11, 20))
+          var expectedRows = 10
+          helper.compareTwoTablesViaHive(tableHive, tableSpark, "After Insert Into", expectedRows)
+          helper.compareTwoTablesViaSpark(tableHive, tableSpark, "After Insert Into", expectedRows)
+
+          // Insert overwrite rows in both tables from Hive and Spark
+          helper.hiveExecute(tableHive.insertOverwriteHiveTableKeyRange(16, 25))
+          helper.sparkSQL(tableSpark.insertOverwriteSparkTableKeyRange(16, 25))
+          expectedRows = if (tableHive.isPartitioned) 15 else 10
+          helper.compareTwoTablesViaHive(tableHive, tableSpark, "After Insert Overwrite", expectedRows)
+          helper.compareTwoTablesViaSpark(tableHive, tableSpark, "After Insert Overwrite", expectedRows)
+
+          // Insert overwrite rows in both tables - add rows in hive table from spark and vice versa
+          helper.hiveExecute(tableSpark.insertOverwriteHiveTableKeyRange(24, 27))
+          helper.sparkSQL(tableHive.insertOverwriteSparkTableKeyRange(24, 27))
+          expectedRows = if (tableHive.isPartitioned) expectedRows + 2 else 4
+          helper.compareTwoTablesViaHive(tableHive, tableSpark, "After Insert Overwrite", expectedRows)
+          helper.compareTwoTablesViaSpark(tableHive, tableSpark, "After Insert Overwrite", expectedRows)
+
+          // Insert into rows in both tables - add rows in hive table from spark and vice versa
+          helper.hiveExecute(tableSpark.insertIntoHiveTableKeyRange(24, 27))
+          helper.sparkSQL(tableHive.insertIntoSparkTableKeyRange(24, 27))
+          expectedRows = expectedRows + 4
+          helper.compareTwoTablesViaHive(tableHive, tableSpark, "After Insert Into", expectedRows)
+          helper.compareTwoTablesViaSpark(tableHive, tableSpark, "After Insert Into", expectedRows)
+
         }
         helper.myRun(testName, code)
       }
