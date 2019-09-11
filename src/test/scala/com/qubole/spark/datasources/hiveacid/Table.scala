@@ -116,11 +116,6 @@ class Table (
       s"DELETE FROM ${hiveTname} where key = ${key}"
     def updateInHiveTableKey(key: Int): String =
       s"UPDATE ${hiveTname} set intCol = intCol * 10 where key = ${key}"
-    def updateInSparkTableKey(key: Int): SparkSession => Unit = {
-      spark: SparkSession =>
-        HiveAcidTable.fromSparkSession(spark, Map("table" -> hiveTname), hiveTname)
-          .update(s"key = ${key}", Map("intCol" -> "intCol * 10"))
-    }
 
     def updateByMergeHiveTable =
       s" merge into ${hiveTname} t using (select distinct ${getCols} from ${hiveTname}) s on s.key=t.key " +

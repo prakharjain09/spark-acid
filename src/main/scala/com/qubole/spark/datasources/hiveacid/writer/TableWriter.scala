@@ -42,11 +42,9 @@ private[hiveacid] class TableWriter(sparkSession: SparkSession,
 
   private def assertOperation(operationType: HiveAcidOperation.OperationType): Unit = {
     if (hiveAcidMetadata.isInsertOnlyTable) {
-      operationType match {
-        case HiveAcidOperation.INSERT_OVERWRITE | HiveAcidOperation.INSERT_INTO =>
-        case _ =>
-          throw HiveAcidErrors.unsupportedOperationTypeInsertOnlyTable(operationType.toString)
-      }
+      // Currently we haven't added support for insert into / insert overwrite in
+      // insertonly tables. Once that is done, this check should be tightened.
+      throw HiveAcidErrors.unsupportedOperationTypeInsertOnlyTable(operationType.toString)
     }
   }
 
@@ -55,7 +53,6 @@ private[hiveacid] class TableWriter(sparkSession: SparkSession,
     assertOperation(operationType)
     val expectRowIdsInDataFrame = operationType match {
       case HiveAcidOperation.INSERT_OVERWRITE | HiveAcidOperation.INSERT_INTO => false
-      case HiveAcidOperation.UPDATE | HiveAcidOperation.DELETE => true
       case _ => throw HiveAcidErrors.invalidOperationType(operationType.toString)
     }
 

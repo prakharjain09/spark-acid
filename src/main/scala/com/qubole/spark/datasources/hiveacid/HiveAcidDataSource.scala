@@ -58,27 +58,6 @@ class HiveAcidDataSource
     createRelation(sqlContext, parameters)
   }
 
-  /**
-    * Delete data from the underlying table based on given condition
-    * @param sqlContext - Spark sql context
-    * @param parameters - map containing different configs and parameters including tableName etc
-    * @param condition - condition on which data will be deleted. ex - "col1 = 2 and col2 > 3"
-    * @return a relation representing the data after deletion
-    */
-  def deleteRelation(sqlContext: SQLContext,
-                     parameters: Map[String, String],
-                     condition: String): BaseRelation = {
-
-    val hiveAcidTable: HiveAcidTable = HiveAcidTable.fromSparkSession(
-      sqlContext.sparkSession,
-      parameters,
-      getFullyQualifiedTableName(parameters)
-    )
-    hiveAcidTable.delete(condition)
-
-    createRelation(sqlContext, parameters)
-  }
-
   override def shortName(): String = {
     HiveAcidDataSource.NAME
   }
@@ -88,42 +67,6 @@ class HiveAcidDataSource
       throw HiveAcidErrors.tableNotSpecifiedException
     })
   }
-
-//  def updateRelation(sqlContext: SQLContext,
-//                     parameters: Map[String, String],
-//                     condition: String, set: Map[String, String]): BaseRelation = {
-//
-//    def toStrColumnMap(map: Map[String, String]): Map[String, Column] = {
-//      map.toSeq.map { case (k, v) => k -> functions.expr(v) }.toMap
-//    }
-//
-//    def buildUpdatedColumns(condition: Expression, updateExpressions): Seq[Column] = {
-//      updateExpressions.zip(target.output).map { case (update, original) =>
-//        val updated = If(condition, update, original)
-//        new Column(Alias(updated, original.name)())
-//      }
-//    }
-//
-//    val updateValueMap = toStrColumnMap(set)
-//    val deleteCondition = functions.expr(condition)
-//    val relation = createRelation(sqlContext, parameters ++
-//      Map("includeRowIds" -> "true")).asInstanceOf[HiveAcidRelation]
-//    val spark = sqlContext.sparkSession
-//    val df = spark.read.format("HiveAcid")
-//      .options(parameters ++ Map("includeRowIds" -> "true")).load().filter(deleteCondition)
-//
-//    val hiveAcidTable = relation.hiveAcidTable
-//    val hiveConf = relation.hiveConf
-//
-//    val operationType = HiveAcidOperation.DELETE
-//
-//    val tableWriter = new TableWriter(sqlContext.sparkSession, hiveAcidTable,
-//      hiveConf, operationType, df, true
-//    )
-//    tableWriter.writeToTable()
-//    relation
-//  }
-
 }
 
 object HiveAcidDataSource {

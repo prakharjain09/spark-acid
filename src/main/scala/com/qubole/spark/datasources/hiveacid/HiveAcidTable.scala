@@ -73,59 +73,6 @@ class HiveAcidTable(sparkSession: SparkSession,
     tableWriter.write(HiveAcidOperation.INSERT_OVERWRITE, df)
   }
 
-  /**
-    * Delete rows from the hive acid table based on given condition
-    * @param condition - condition string to delete rows
-    */
-  def delete(condition: String): Unit = {
-
-    val df = sparkSession.read.format(HiveAcidDataSource.NAME)
-      .options(parameters ++
-        Map("includeRowIds" -> "true", "table" -> hiveAcidMetadata.fullyQualifiedName))
-      .load()
-      .filter(functions.expr(condition))
-
-    val tableWriter = new TableWriter(sparkSession, txnManager, hiveAcidMetadata)
-    tableWriter.write(HiveAcidOperation.DELETE, df)
-  }
-
-  /**
-    * Update rows in the hive acid table based on condition and newValues
-    * @param condition - condition string to identify rows which needs to be updated
-    * @param newValues - Map of (column, value) to set
-    */
-  def update(condition: String, newValues: Map[String, String]): Unit = {
-
-    val df = sparkSession.read.format(HiveAcidDataSource.NAME)
-      .options(parameters ++
-        Map("includeRowIds" -> "true", "table" -> hiveAcidMetadata.fullyQualifiedName))
-      .load()
-      .filter(functions.expr(condition))
-
-    // FIXME: Handle table.column in newValues
-    def toStrColumnMap(map: Map[String, String]): Map[String, Column] = {
-      map.toSeq.map { case (k, v) => k -> functions.expr(v) }.toMap
-    }
-    val strColumnMap = toStrColumnMap(newValues)
-    val updateExpressions: Seq[Expression] =
-      df.queryExecution.optimizedPlan.output.map {
-        case attr =>
-          if (strColumnMap.contains(attr.name)) {
-            strColumnMap(attr.name).expr
-          } else {
-            attr
-          }
-      }
-    val newColumns = updateExpressions.zip(df.queryExecution.optimizedPlan.output).map {
-      case (newExpr, origAttr) =>
-        new Column(Alias(newExpr, origAttr.name)())
-    }
-    val updateDf = df.select(newColumns: _*)
-
-
-    val tableWriter = new TableWriter(sparkSession, txnManager, hiveAcidMetadata)
-    tableWriter.write(HiveAcidOperation.UPDATE, updateDf)
-  }
 }
 
 object HiveAcidTable {

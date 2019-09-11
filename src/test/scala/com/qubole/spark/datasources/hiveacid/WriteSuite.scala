@@ -29,7 +29,7 @@ import org.scalatest._
 
 import scala.util.control.NonFatal
 
-class HiveAcidTableSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll {
+class WriteSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll {
 
   val log = LogManager.getLogger(this.getClass)
   log.setLevel(Level.INFO)
@@ -70,14 +70,11 @@ class HiveAcidTableSuite extends FunSuite with BeforeAndAfterEach with BeforeAnd
 
 
   // Test Run
-  insertIntoOverwriteTest(Table.allFullAcidTypes, false)
+  insertIntoOverwriteTestForFullAcidTables(Table.allFullAcidTypes())
+  insertIntoOverwriteTestForInsertOnlyTables(Table.allInsertOnlyTypes())
 
-  // Insert Into/Overwrite test
-  //
-  // 1. Write bunch of rows using hive client
-  // 2. Read entire table using hive client
-  // Verify: Both spark reads are same as hive read
-  def insertIntoOverwriteTest(tTypes: List[(String,Boolean)], insertOnly: Boolean): Unit = {
+  // Insert Into/Overwrite test for full acid tables
+  def insertIntoOverwriteTestForFullAcidTables(tTypes: List[(String,Boolean)]): Unit = {
     tTypes.foreach { case (tType, isPartitioned) =>
       val tableNameHive = "tHive"
       val tableNameSpark = "tSpark"
@@ -117,6 +114,32 @@ class HiveAcidTableSuite extends FunSuite with BeforeAndAfterEach with BeforeAnd
           helper.compareTwoTablesViaHive(tableHive, tableSpark, "After Insert Into", expectedRows)
           helper.compareTwoTablesViaSpark(tableHive, tableSpark, "After Insert Into", expectedRows)
 
+        }
+        helper.myRun(testName, code)
+      }
+    }
+  }
+
+  def insertIntoOverwriteTestForInsertOnlyTables(tTypes: List[(String,Boolean)]): Unit = {
+    tTypes.foreach { case (tType, isPartitioned) =>
+      val tableNameSpark = "tSpark"
+      val testName = s"Simple InsertInto Test for $tableNameSpark type $tType"
+      test(testName) {
+        val tableSpark = new Table(DEFAULT_DBNAME, tableNameSpark, cols, tType, isPartitioned)
+        def code() = {
+          helper.recreate(tableSpark)
+
+          val exception1 = intercept[RuntimeException] {
+            helper.sparkSQL(tableSpark.insertIntoSparkTableKeyRange(11, 20))
+          }
+          assert(exception1.getMessage.contains(
+            "Unsupported operation type - INSERT_INTO for InsertOnly tables"))
+
+          val exception2 = intercept[RuntimeException] {
+            helper.sparkSQL(tableSpark.insertOverwriteSparkTableKeyRange(16, 25))
+          }
+          assert(exception2.getMessage.contains(
+            "Unsupported operation type - INSERT_OVERWRITE for InsertOnly tables"))
         }
         helper.myRun(testName, code)
       }

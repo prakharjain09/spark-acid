@@ -98,8 +98,6 @@ private[writer] class Hive3FullAcidWriter(val options: WriterOptions,
     val tableDesc = hive3Options.getFileSinkDesc.getTableInfo
 
     val rowIdColNum = options.operationType match {
-      case HiveAcidOperation.DELETE | HiveAcidOperation.UPDATE =>
-        0
       case HiveAcidOperation.INSERT_INTO | HiveAcidOperation.INSERT_OVERWRITE =>
         -1
       case x =>
@@ -128,8 +126,6 @@ private[writer] class Hive3FullAcidWriter(val options: WriterOptions,
 
     val (createDelta, createDeleteDelta) = options.operationType match {
       case HiveAcidOperation.INSERT_INTO | HiveAcidOperation.INSERT_OVERWRITE => (true, false)
-      case HiveAcidOperation.DELETE => (false, true)
-      case HiveAcidOperation.UPDATE => (true, true)
       case unknownOperation => throw HiveAcidErrors.invalidOperationType(unknownOperation.toString)
     }
 
@@ -210,10 +206,6 @@ private[writer] class Hive3FullAcidWriter(val options: WriterOptions,
     // hiveWriter.write(serializedRow)
 
     options.operationType match {
-      case HiveAcidOperation.DELETE =>
-        recordUpdater.delete(options.currentWriteId, hiveRow)
-      case HiveAcidOperation.UPDATE =>
-        recordUpdater.update(options.currentWriteId, hiveRow)
       case HiveAcidOperation.INSERT_INTO | HiveAcidOperation.INSERT_OVERWRITE =>
         recordUpdater.insert(options.currentWriteId, hiveRow)
       case x =>
@@ -282,10 +274,6 @@ private class SparkHiveRowConverter(options: WriterOptions,
   }
 
   private val objectInspector = options.operationType match {
-    case HiveAcidOperation.DELETE =>
-      objectInspectorWithRowId
-    case HiveAcidOperation.UPDATE =>
-      objectInspectorWithRowId
     case HiveAcidOperation.INSERT_INTO | HiveAcidOperation.INSERT_OVERWRITE =>
       objectInspectorWithoutRowId
     case x =>

@@ -29,7 +29,7 @@ import org.scalatest._
 
 import scala.util.control.NonFatal
 
-class HiveACIDSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll {
+class ReadSuite extends FunSuite with BeforeAndAfterEach with BeforeAndAfterAll {
 
   val log = LogManager.getLogger(this.getClass)
   log.setLevel(Level.INFO)
